@@ -1,5 +1,7 @@
 # agent-gates
 
+[![CI](https://github.com/Guille1799/agent-gates/actions/workflows/ci.yml/badge.svg)](https://github.com/Guille1799/agent-gates/actions/workflows/ci.yml)
+
 **Gates around an autonomous coding agent.** Four small, self-contained tools that answer the
 questions you have to ask *before* an agent is allowed to act and *after* it has acted — and that
 nobody asks until something goes wrong.
@@ -33,17 +35,21 @@ That second half is not decoration. It exists because of a failure measured on 2
 that existed, passed its own contract, and nobody called it.* **A mechanism that is written but not
 wired reads exactly like one that works.**
 
-**2 · The test suite is flaky here, and the cause is known.**
+**2 · The suite was flaky on the packaging machine, and CI settled why.**
 
-Five consecutive runs of the same command on the development machine: `4 failed · 0 · 4 · 0 · 3`.
-The failures land only on the tests that spawn subprocesses, they fail in `0.25s` where a passing
-run takes `1.33s`, and the error is `OSError: [WinError 6] The handle is invalid` — the sandbox
-cannot duplicate handles on process launch.
+Five consecutive runs of the same command on the machine these were extracted from:
+`4 failed · 0 · 4 · 0 · 3`. The failures landed only on the tests that spawn subprocesses, they
+failed in `0.25s` where a passing run took `1.33s`, and the error was
+`OSError: [WinError 6] The handle is invalid`.
 
-This is written down rather than quietly re-run until green, because **`el_gate_se_cayo_solo.py`, in
-this very repository, is the tool that answers that question**: it re-runs the failing tests and
-reports `0` if they pass again (it fell on its own) or `1` if they still fail (revert). A green
-achieved by retrying is not the same as a green, and telling the two apart is the whole point.
+The obvious reading was *“Windows cannot do this”*. **That reading was wrong, and CI is how we
+know**: `windows-latest` runs the same suite green, alongside Linux on 3.10, 3.12 and 3.14. The
+flakiness belongs to one sandboxed environment, not to the platform.
+
+This is left written down rather than quietly deleted, because it is the same question the repo
+is about. **`bin/el_gate_se_cayo_solo.py` exists to answer exactly this**: it re-runs the failing
+tests and reports `0` if they pass again (it fell on its own) or `1` if they still fail (revert).
+A green reached by retrying is not the same as a green — and telling the two apart is the point.
 
 ## Origin
 
