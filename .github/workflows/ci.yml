@@ -1,0 +1,48 @@
+name: CI
+
+# POR QUE EXISTE ESTE FICHERO (2026-09-14)
+#
+# Este repositorio va de una sola idea: que un verde signifique algo. Publicarlo sin nada que
+# corra los tests seria la contradiccion mas barata posible — un repo sobre verificacion cuya
+# unica prueba es la palabra de quien lo escribio.
+#
+# Y trae ademas una razon propia: estas cuatro herramientas se extrajeron de otro repositorio, y
+# la extraccion es justo el momento en que algo deja de funcionar sin que nadie se entere. En un
+# runner el usuario NO se llama como el de desarrollo, asi que cualquier ruta de casa cableada
+# revienta al instante en vez de esperar a que alguien la vea.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  tests:
+    name: pytest (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 es el suelo que se quiere soportar; 3.14 es donde se desarrolla. Sin la de abajo,
+        # "funciona en cualquier Python moderno" seria una afirmacion sin comprobar; sin la de
+        # arriba, el CI podria estar verde mientras el entorno real falla.
+        python: ["3.10", "3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      # Sin `pip install` de dependencias A PROPOSITO: estas herramientas no tienen ninguna fuera
+      # de la libreria estandar, y este paso lo demuestra en vez de prometerlo. Si alguna vez
+      # aparece un import de fuera, este trabajo se pone rojo, que es lo que se quiere.
+      - run: pip install pytest
+      - run: python -m pytest -q
+
+  # ⚠️ WINDOWS NO ESTA EN LA MATRIZ, y es una ausencia declarada, no un olvido.
+  #
+  # Dos de estas cuatro herramientas lanzan subprocesos, y en la maquina donde se empaquetaron esos
+  # tests fallan de forma INTERMITENTE con `OSError: [WinError 6] The handle is invalid` — cinco
+  # pasadas de la misma orden dieron 4 fallos / 0 / 4 / 0 / 3. Esta por ver si eso es de aquella
+  # maquina o de Windows, y anadirlo sin saberlo seria estrenar el repo con un rojo que no se sabe
+  # leer. Se anade en cuanto se compruebe, y hasta entonces el README lo dice.
