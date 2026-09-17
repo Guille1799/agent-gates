@@ -138,9 +138,20 @@ def fuera_de(repo: Path, rama: str, acepta: set[str],
             if not lineas:
                 sin_comprobar.append(rel)     # NO es «está a salvo»
                 continue
-            if any(_git(repo, "grep", "-l", "-F", "--", max(lineas, key=len), r)
+            # Se prueban las CINCO lineas mas distintivas, no solo la mas larga.
+            #
+            # ⚠️ Medido en un repo real: un fichero que se PARTIO en tres al refactorizar salia
+            # como «solo fuera», y su contenido estaba entero en la rama, repartido. Fallaba
+            # porque su linea mas larga era la firma de una funcion que el refactor habia
+            # REFORMATEADO: un renombrado sobrevive a buscar una linea literal, un refactor no.
+            # Con cinco intentos, una linea reformateada ya no condena al fichero entero.
+            #
+            # 🔑 Y sigue siendo comparacion LITERAL: no se parecen lineas, se buscan. Si ninguna
+            # de las cinco esta, el contenido de verdad no esta.
+            if any(_git(repo, "grep", "-l", "-F", "--", d, r)
+                   for d in sorted(lineas, key=len, reverse=True)[:5]
                    for r in (rama, *casas)):
-                continue                      # su línea distintiva está en la rama: a salvo
+                continue                      # alguna linea distintiva esta en casa: a salvo
             solo_fuera.append(rel)
     return solo_fuera, sin_comprobar
 
