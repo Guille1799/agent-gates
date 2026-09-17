@@ -87,10 +87,23 @@ def _git(repo: Path, *args: str, cwd: Path | None = None) -> str | None:
     return r.stdout if r.returncode == 0 else None
 
 
-def fuera_de(repo: Path, rama: str, acepta: set[str]) -> tuple[list[str], list[str]] | None:
+def fuera_de(repo: Path, rama: str, acepta: set[str],
+             casas: tuple[str, ...] = ()) -> tuple[list[str], list[str]] | None:
     """(ficheros que sólo existen fuera, ficheros que no se pudieron comprobar), o None si no
     se pudo ni empezar."""
-    commits = _git(repo, "rev-list", "--all", "--reflog", "--not", rama)
+    # `--not` acepta varias referencias: un fichero que vive en CUALQUIERA de ellas ya tiene casa.
+    #
+    # Por que hace falta mas de una rama, y lo enseño un repo real: `main` no siempre es el
+    # destino del trabajo. En un repositorio PUBLICO, `main` es el escaparate — lo que ve quien
+    # abre el proyecto — y la maquinaria interna se queda fuera A PROPOSITO. Ahi los ficheros «solo
+    # fuera de main» eran siete, y estaban todos en una rama llamada
+    # `respaldo/antes-del-aplastado-<fecha>`: no era trabajo perdido, era alguien haciendo
+    # exactamente lo correcto, y esta comprobacion lo señalaba como problema.
+    #
+    # 🔑 Se declaran RAMAS y no patrones de fichero, y la diferencia importa: una rama con ese
+    # nombre es un acto deliberado de una persona, no una adivinanza mia. Y degrada del lado
+    # seguro — el dia que alguien borre la rama, sus ficheros vuelven a salir en la alarma.
+    commits = _git(repo, "rev-list", "--all", "--reflog", "--not", rama, *casas)
     if commits is None:
         return None
 
@@ -125,7 +138,8 @@ def fuera_de(repo: Path, rama: str, acepta: set[str]) -> tuple[list[str], list[s
             if not lineas:
                 sin_comprobar.append(rel)     # NO es «está a salvo»
                 continue
-            if _git(repo, "grep", "-l", "-F", "--", max(lineas, key=len), rama):
+            if any(_git(repo, "grep", "-l", "-F", "--", max(lineas, key=len), r)
+                   for r in (rama, *casas)):
                 continue                      # su línea distintiva está en la rama: a salvo
             solo_fuera.append(rel)
     return solo_fuera, sin_comprobar
@@ -160,6 +174,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--rama", default="main", help="la rama principal (por defecto, main)")
     p.add_argument("--acepta", nargs="*", default=[],
                    help="rutas cuya perdida se acepta POR ESCRITO; el motivo va donde se llama")
+    p.add_argument("--tambien-en", nargs="*", default=[], metavar="RAMA",
+                   help="otras ramas que cuentan como casa legitima: un respaldo declarado, la "
+                        "rama de un robot. Si se borra una, sus ficheros vuelven a salir")
     a = p.parse_args(argv)
 
     repo = Path(a.repo)
@@ -170,7 +187,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"NO SE PUDO SABER: la rama '{a.rama}' no existe aqui. No limpies nada.")
         return 2
 
-    r = fuera_de(repo, a.rama, set(a.acepta))
+    casas = tuple(a.tambien_en)
+    for c in casas:
+        if _git(repo, "rev-parse", "--verify", c) is None:
+            print(f"NO SE PUDO SABER: la casa declarada '{c}' no existe. No limpies nada.")
+            return 2
+    r = fuera_de(repo, a.rama, set(a.acepta), casas)
     if r is None:
         print("NO SE PUDO SABER: git no contesta en ese directorio. No limpies nada.")
         return 2
@@ -178,7 +200,8 @@ def main(argv: list[str] | None = None) -> int:
     sucios = worktrees_sucios(repo)
 
     if not (solo_fuera or sin_comprobar or sucios):
-        print(f"NADA VIVE SOLO FUERA DE {a.rama}: ni en stash, ni en rama suelta, ni en worktree.")
+        extra = (" (ni de " + ", ".join(casas) + ")") if casas else ""
+        print(f"NADA VIVE SOLO FUERA DE {a.rama}{extra}: ni en stash, ni en rama suelta, ni en worktree.")
         return 0
 
     if solo_fuera:
