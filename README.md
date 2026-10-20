@@ -2,11 +2,26 @@
 
 [![CI](https://github.com/Guille1799/agent-gates/actions/workflows/ci.yml/badge.svg)](https://github.com/Guille1799/agent-gates/actions/workflows/ci.yml)
 
-**Gates around an autonomous coding agent.** Four small, self-contained tools that answer the
+**What it is:** Six small tools that keep an eye on an AI agent that writes code on its own, overnight,
+with nobody watching.
+
+**How it works:** Each tool is a short Python script that answers one yes-or-no question, before or after
+the agent acts. Can the agent log in at all, or would it waste the night? A test broke after its commit:
+was that its fault, or was it already broken? Each one exists because that thing actually went wrong once.
+
+**Status:** finished (reviewed 2026-10-20).
+
+**How to run:** No install needed; the tools in `bin/` run with plain Python. Tests: `python -m pytest tests/ -q`.
+
+**Notebook:** private, outside this repo.
+
+**What it demonstrates:** That an unattended agent can be kept honest with small, boring checks instead of trust.
+
+**Gates around an autonomous coding agent.** Six small, self-contained tools that answer the
 questions you have to ask *before* an agent is allowed to act and *after* it has acted — and that
 nobody asks until something goes wrong.
 
-They were extracted from a private system where four autonomous agents commit code every night.
+They were extracted from a private system where autonomous agents work on the code overnight.
 Every one of them exists because of a specific failure, and the docstring of each says which.
 
 | tool | the question it answers |
